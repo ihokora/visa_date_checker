@@ -1,0 +1,42 @@
+{
+  :class             => 'ClassName',
+  :class_name        => 'ClassName',
+  :css               => 'CssSelector',
+  :id                => 'Id',
+  :link              => 'LinkText',
+  :link_text         => 'LinkText',
+  :name              => 'Name',
+  :partial_link_text => 'PartialLinkText',
+  :tag_name          => 'TagName',
+  :xpath             => 'Xpath',
+}
+
+profile = Selenium::WebDriver::Chrome::Profile.new
+profile["intl.accept_languages"] = "en"
+
+
+#rc-imageselect-target > table > tbody > tr:nth-child(1) > td:nth-child(1) > div
+#rc-imageselect-target > table > tbody > tr:nth-child(1) > td:nth-child(2) > div
+#rc-imageselect-target > table > tbody > tr:nth-child(1) > td:nth-child(3) > div
+
+
+
+#rc-imageselect-target > table > tbody > tr:nth-child(2) > td:nth-child(1) > div
+#rc-imageselect-target > table > tbody > tr:nth-child(2) > td:nth-child(2) > div
+#rc-imageselect-target > table > tbody > tr:nth-child(2) > td:nth-child(3) > div
+
+
+
+#rc-imageselect-target > table > tbody > tr:nth-child(3) > td:nth-child(1) > div
+#rc-imageselect-target > table > tbody > tr:nth-child(3) > td:nth-child(2) > div
+#rc-imageselect-target > table > tbody > tr:nth-child(3) > td:nth-child(3) > div
+
+
+verify button 
+
+br.find_element(:id=>"cnnMainPage")
+br.find_element(:id=>"cnnMainPage").text.include? "Mideast"
+
+
+indexing array in to hash
+image_id = Hash[(1...images.size+1).zip cells]
