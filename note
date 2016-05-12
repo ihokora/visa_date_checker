@@ -15,21 +15,6 @@ profile = Selenium::WebDriver::Chrome::Profile.new
 profile["intl.accept_languages"] = "en"
 
 
-#rc-imageselect-target > table > tbody > tr:nth-child(1) > td:nth-child(1) > div
-#rc-imageselect-target > table > tbody > tr:nth-child(1) > td:nth-child(2) > div
-#rc-imageselect-target > table > tbody > tr:nth-child(1) > td:nth-child(3) > div
-
-
-
-#rc-imageselect-target > table > tbody > tr:nth-child(2) > td:nth-child(1) > div
-#rc-imageselect-target > table > tbody > tr:nth-child(2) > td:nth-child(2) > div
-#rc-imageselect-target > table > tbody > tr:nth-child(2) > td:nth-child(3) > div
-
-
-
-#rc-imageselect-target > table > tbody > tr:nth-child(3) > td:nth-child(1) > div
-#rc-imageselect-target > table > tbody > tr:nth-child(3) > td:nth-child(2) > div
-#rc-imageselect-target > table > tbody > tr:nth-child(3) > td:nth-child(3) > div
 
 
 verify button 
@@ -40,3 +25,35 @@ br.find_element(:id=>"cnnMainPage").text.include? "Mideast"
 
 indexing array in to hash
 image_id = Hash[(1...images.size+1).zip cells]
+
+
+
+u = @driver.find_elements(:class, 'rc-image-tile-target')[2-1]
+u_atrr = u
+sleep 1
+u.click
+puts u_atrr
+
+
+
+
+
+    "theme": "Material-Theme.sublime-theme",
+    "color_scheme": "Packages/Material Theme/schemes/Material-Theme.tmTheme",
+
+    "material_theme_small_tab"     : true , // Set small tabs
+    "overlay_scroll_bars"          : "enabled",
+    "line_padding_top"             : 3,
+    "line_padding_bottom"          : 3,
+    "always_show_minimap_viewport" : true,
+    "bold_folder_labels"           : true,
+    "indent_guide_options"         : [ "draw_normal", "draw_active" ],   // Highlight active indent
+
+    if driver.page_source.include? 'No date(s) available for appointment'
+      puts "#{time} there no date avalible" 
+      go_to_end  
+    elsif driver.page_source.include? 'The image you selected not match'
+      puts "#{time} captcha solved wrong!"
+    else
+      puts "#{time} there is date avalible/ go to..."
+    end

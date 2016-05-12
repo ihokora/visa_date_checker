@@ -3,155 +3,201 @@ require 'date'
 require 'selenium-webdriver'
 require "rspec"
 require 'two_captcha'
-require_relative 'clicker'
 
-
-Selenium::WebDriver::Chrome::Service.executable_path = File.join(Dir.pwd, './chromedriver')
-@driver = Selenium::WebDriver.for :chrome
-
-wait = Selenium::WebDriver::Wait.new(:timeout => 5)
-
-client = TwoCaptcha.new('996d8cda7f1329a8eae7c9b572af8dc9')
 
 def time
   Time.now.strftime('%a, %Y %b %d %H:%M:%S')  
 end
 
-def displayed?(how, what)
-  @driver.find_element(how, what).displayed?
+def driver_setup
+  Selenium::WebDriver::Chrome::Service.executable_path = File.join(Dir.pwd, './chromedriver')
+  @driver = Selenium::WebDriver.for :chrome 
+  # @driver = Selenium::WebDriver.for :phantomjs
+  @wait = Selenium::WebDriver::Wait.new(:timeout => 5)  
+end    
+
+class PageDriver
+
+  attr_reader :driver
+
+  def initialize(driver)
+    @driver = driver    
+  end
+
+  def find(how, locator)
+    driver.find_element(how, locator)
+  end
+
+  def displayed?(how, what)
+    driver.find_element(how, what).displayed?
   true
   rescue Selenium::WebDriver::Error::NoSuchElementError
     false
+  end  
+
+  def visit  # get the main page
+    print  "#{time} connecting"    
+    loop do
+      driver.get "http://polandonline.vfsglobal.com/poland-ukraine-appointment/(S(050ypg55oonkqejsflpgm445))/AppScheduling/AppWelcome.aspx?P=s2x6znRcBRv7WQQK7h4MTnRfnp06lzlPrFCdHEUl1mc="
+      print ". "
+      sleep 1
+      # break if displayed?(:id, "ctl00_plhMain_lnkSchApp")
+      break if driver.title.include?('Poland') == true
+    end
+    print "\n"
+    puts "#{time} main page loaded"
+  end
+
+  def verify_page
+    if driver.page_source.include?('You have selected the VAC at Poland Lviv')
+      puts "#{time} text founded"
+    else
+      puts "#{time} text not founded"
+    end  
+  end 
+
+   
+  def go_throuth
+    # find Призначити дату button 
+    driver.find_element(:id, "ctl00_plhMain_lnkSchApp").click
+        
+    # dropdown select town
+    dropdown_town = wait_for { driver.find_element(:id, "ctl00_plhMain_cboVAC") }
+    select_list = Selenium::WebDriver::Support::Select.new(dropdown_town)
+    select_list.select_by(:text, 'Poland Lviv')
+    
+    # dropdown select purpose
+    dropdown_purpose = driver.find_element(:id, "ctl00_plhMain_cboPurpose")
+    select_list = Selenium::WebDriver::Support::Select.new(dropdown_purpose)
+    select_list.select_by(:text, 'Submission of documents')
+    
+    # click submit button
+    driver.find_element(:id, "ctl00_plhMain_btnSubmit").click
+  end
+
+
+
+  def switch_to_captcha_frame
+    # switch to recaptcha checkbox frame
+    wait_for { driver.find_element(:id, "ctl00_plhMain_grecaptcha") }
+    driver.switch_to.frame('undefined')
+    
+    # click recaptcha checkbox
+    checkbox = wait_for { driver.find_element(:id, "recaptcha-anchor") }
+    checkbox.click
+  end
+
+  def switch_to_default
+    mainWin = driver.window_handle
+    driver.switch_to.window mainWin
+  end
+
+  def wait_for(seconds=5)
+    Selenium::WebDriver::Wait.new(:timeout => seconds).until { yield }
+  end
+  
+  
+
 end
 
-puts "2captcha account balance: $#{client.balance}"
-
-print time + " connecting"
-
-loop do
-  @driver.get "https://polandonline.vfsglobal.com/poland-ukraine-appointment/(S(050ypg55oonkqejsflpgm445))/AppScheduling/AppWelcome.aspx?P=s2x6znRcBRv7WQQK7h4MTnRfnp06lzlPrFCdHEUl1mc="
-  print ". "
-  #break if displayed?(:id, "ctl00_plhMain_lnkSchApp")
-  break if @driver.title.include?('Poland') == true
-end
-print "\n"
-time
-puts "#{time} main page loaded"
-
-
-# find Призначити дату button 
-@driver.find_element(:id, "ctl00_plhMain_lnkSchApp").click
-dropdown = @driver.find_element(:id, "ctl00_plhMain_cboVAC")
-
-# dropdown select town
-select_list = Selenium::WebDriver::Support::Select.new(dropdown)
-select_list.select_by(:text, 'Poland Lviv')
-
-# dropdown select
-dropdown = @driver.find_element(:id, "ctl00_plhMain_cboPurpose")
-select_list = Selenium::WebDriver::Support::Select.new(dropdown)
-select_list.select_by(:text, 'Submission of documents')
-
-# click submit button
-@driver.find_element(:id, "ctl00_plhMain_btnSubmit").click
 
 
 
-# switch to recaptcha checkbox frame
-wait.until{ @driver.find_element(:id, "ctl00_plhMain_grecaptcha") }
-@driver.switch_to.frame('undefined')
+class CaptchaSolver < PageDriver
+  
+  def initialize(driver)
+      super
+      visit            
+  end 
+       
+  def setup_2captcha_client 
+    @client = TwoCaptcha.new('996d8cda7f1329a8eae7c9b572af8dc9')  
+    puts "2captcha account balance: $#{@client.balance}"
+  end
 
-# click recaptcha checkbox
-checkbox = wait.until { @driver.find_element(:id, "recaptcha-anchor") }
-checkbox.click
+  def switch_to_captcha_challenge  # SWITCH TO CAPTCHA FRAME     
+    captchaFrame = wait_for { find(:css, "body > div > div:nth-child(4) > iframe") }
+    driver.switch_to.frame(captchaFrame)
+  end
 
-mainWin = @driver.window_handle
-@driver.switch_to.window mainWin
+  def test_captcha_availability
+    puts "#{time} test_1 ok" if displayed?(:id, "recaptcha-verify-button")
+    puts "#{time} test_2 ok" if driver.page_source.include? 'Select all images' 
+  end 
 
+  def get_capthca_parametrs
+    image = @driver.find_element(:css, "#rc-imageselect-target > table > tbody > tr:nth-child(2) > td:nth-child(2) > div > div.rc-image-tile-wrapper > img")
+    @image_link = image.attribute("src")  
+    
+    instruction_selector = driver.find_element(:css, "#rc-imageselect > div.rc-imageselect-payload > div.rc-imageselect-instructions > div.rc-imageselect-desc-wrapper > div.rc-imageselect-desc-no-canonical")
+    @instruction = instruction_selector.text
+    puts @instruction    
+          
+    images = wait_for { driver.find_elements(:class, 'rc-image-tile-target') }
+    puts images.size
+  end
+ 
+  
+  def solve_captcha  # send captcha to 2captcha
+    if @instruction.include? 'there are none left'
+      puts "#{time} there is refreshable captcha :-("
+    else  
+      captcha = @client.decode(url: @image_link, recaptcha: 1, textinstructions: @instruction, can_no_answer: 1)    
+      @solution = captcha.text
+      captcha_id = captcha.id    
+      puts "#{time} 2captcha response: #{@solution}"
+      puts "#{time} captcha_id = #{captcha_id}"
+      image_clicker
+    end
+  end  
+  
+  
+  def image_clicker  # clicking on images that comes in response
+    index = @solution.split(//).map(&:to_i)
+    for i in 0...index.length
+    	sleep 1
+    	u = driver.find_elements(:class, 'rc-image-tile-target')[index[i]-1]
+      u.click
+      puts "#{time} clicked on #{index[i]} image"  
+    end
+  end
 
-if @driver.page_source.include? 'You have selected the VAC at Poland Lviv'
-  puts "#{time} text founded"
-else
-  puts "#{time} text not founded"
-end
-
-# SWITCH TO CAPTCHA FRAME 
-wait.until { @captchaFrame = @driver.find_element(:css, 'body > div > div:nth-child(4) > iframe') }
-@driver.switch_to.frame(@captchaFrame)
-
-puts "#{time} test_1 ok" if displayed?(:id, "recaptcha-verify-button")
-puts "#{time} test_2 ok" if @driver.page_source.include? 'Select all images' 
-
-#image = @driver.find_element(:css, "#rc-imageselect-target > table > tbody > tr:nth-child(2) > td:nth-child(2) > div > div.rc-image-tile-wrapper > img")
-image = @driver.find_element(:css, "#rc-imageselect-target > table > tbody > tr:nth-child(2) > td:nth-child(2) > div > div.rc-image-tile-wrapper > img")
-image_link = image.attribute("src")
-
-
-instruction_selector = @driver.find_element(:css, "#rc-imageselect > div.rc-imageselect-payload > div.rc-imageselect-instructions > div.rc-imageselect-desc-wrapper > div.rc-imageselect-desc-no-canonical")
-instruction = instruction_selector.text
-puts instruction
-
-sleep 1
-
-
-images = @driver.find_elements(:class, 'rc-image-tile-target')
-puts images.size
-
-
-# send captcha to solving
-captcha = client.decode(url: image_link, recaptcha: 1, textinstructions: instruction, can_no_answer: 1)
-solution = captcha.text.split(//).map(&:to_i)
-captcha_id = captcha.id
-
-puts "#{time} click on #{solution[0]}, #{solution[1]} and #{solution[2]} images"
-puts "#{time} captcha_id = #{captcha_id}"
-
-
-
-index = solution
-
-# clicking on images that comes in response
-for i in 0...index.length
-	sleep 1
-	u = @driver.find_elements(:class, 'rc-image-tile-target')[index[i]-1]
-  u.click
-  puts "#{time} clicked on #{index[i]} image"  
 end
 
-verify_button = @driver.find_element(:css, "#recaptcha-verify-button")
-verify_button.click
-puts "#{time}'Verify' button clicked"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-=begin
-for i in 0...images.size
-  u[i] = @driver.find_element(:class, 'rc-image-tile-target')[i]
-  u_atrr = u.attribute("css")
-  puts u 
+  
+def click_verify_select_type  
+  sleep 1
+  
+  verify_button = @driver.find_element(:css, "#recaptcha-verify-button")
+  verify_button.click
+  puts "#{time}'Verify' button clicked"
+  
+  
+  sleep 1
+  @driver.switch_to.default_content
+  # select type of visa
+  dropdown_visa_type = @driver.find_element(:id, "ctl00_plhMain_cboVisaCategory")
+  select_list = Selenium::WebDriver::Support::Select.new(dropdown_visa_type)
+  select_list.select_by(:text, 'National Visa')
 end
-=end
+
+def text_present?(text)
+  @driver.page_source.include? text    
+end
+
+def teardown
+  @driver.quit
+end
 
 
+def realtime # :yield:
+  r0 = Time.now
+  yield
+  Time.now - r0
+end
 
-=begin
-u = @driver.find_elements(:class, 'rc-image-tile-target')[2-1]
-u_atrr = u
-sleep 1
-u.click
-puts u_atrr
-=end
+def result_message
+  message = @wait.until { @driver.find_element(:id, 'ctl00_plhMain_lblMsg') }
+  @message = message.text
+  puts "#{time} #{@message}"
+end
