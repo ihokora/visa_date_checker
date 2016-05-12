@@ -11,6 +11,14 @@
   :xpath             => 'Xpath',
 }
 
+#ctl00_plhMain_lblMsg
+
+
+Thu, 2016 May 12 15:28:24 connecting/home/sikigo/.rbenv/versions/2.2.3/lib/ruby/2.2.0/net/protocol.rb:158:in `rescue in rbuf_fill': Net::ReadTimeout (Net::ReadTimeout)
+
+
+
+
 profile = Selenium::WebDriver::Chrome::Profile.new
 profile["intl.accept_languages"] = "en"
 

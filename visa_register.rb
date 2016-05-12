@@ -6,7 +6,7 @@ require 'two_captcha'
 
 
 def time
-  Time.now.strftime('%a, %Y %b %d %H:%M:%S')  
+  Time.now.strftime('%Y %b %d %H:%M:%S')  
 end
 
 def driver_setup
@@ -38,7 +38,13 @@ class PageDriver
   def visit  # get the main page
     print  "#{time} connecting"    
     loop do
-      driver.get "http://polandonline.vfsglobal.com/poland-ukraine-appointment/(S(050ypg55oonkqejsflpgm445))/AppScheduling/AppWelcome.aspx?P=s2x6znRcBRv7WQQK7h4MTnRfnp06lzlPrFCdHEUl1mc="
+      begin
+        driver.get "http://polandonline.vfsglobal.com/poland-ukraine-appointment/(S(050ypg55oonkqejsflpgm445))/AppScheduling/AppWelcome.aspx?P=s2x6znRcBRv7WQQK7h4MTnRfnp06lzlPrFCdHEUl1mc="
+      rescue Net::ReadTimeout
+        nil
+        puts "#{time} Net::ReadTimeout error :-("
+      end
+
       print ". "
       sleep 1
       # break if displayed?(:id, "ctl00_plhMain_lnkSchApp")
@@ -58,21 +64,26 @@ class PageDriver
 
    
   def go_throuth
-    # find Призначити дату button 
-    driver.find_element(:id, "ctl00_plhMain_lnkSchApp").click
-        
-    # dropdown select town
-    dropdown_town = wait_for { driver.find_element(:id, "ctl00_plhMain_cboVAC") }
-    select_list = Selenium::WebDriver::Support::Select.new(dropdown_town)
-    select_list.select_by(:text, 'Poland Lviv')
-    
-    # dropdown select purpose
-    dropdown_purpose = driver.find_element(:id, "ctl00_plhMain_cboPurpose")
-    select_list = Selenium::WebDriver::Support::Select.new(dropdown_purpose)
-    select_list.select_by(:text, 'Submission of documents')
-    
-    # click submit button
-    driver.find_element(:id, "ctl00_plhMain_btnSubmit").click
+    begin
+      # find Призначити дату button 
+      driver.find_element(:id, "ctl00_plhMain_lnkSchApp").click
+          
+      # dropdown select town
+      dropdown_town = wait_for { driver.find_element(:id, "ctl00_plhMain_cboVAC") }
+      select_list = Selenium::WebDriver::Support::Select.new(dropdown_town)
+      select_list.select_by(:text, 'Poland Lviv')
+      
+      # dropdown select purpose
+      dropdown_purpose = driver.find_element(:id, "ctl00_plhMain_cboPurpose")
+      select_list = Selenium::WebDriver::Support::Select.new(dropdown_purpose)
+      select_list.select_by(:text, 'Submission of documents')
+      
+      # click submit button
+      driver.find_element(:id, "ctl00_plhMain_btnSubmit").click
+    rescue Net::ReadTimeout
+      exit
+    end
+
   end
 
 
@@ -112,7 +123,7 @@ class CaptchaSolver < PageDriver
        
   def setup_2captcha_client 
     @client = TwoCaptcha.new('996d8cda7f1329a8eae7c9b572af8dc9')  
-    puts "2captcha account balance: $#{@client.balance}"
+    puts "#{time} 2captcha account balance: $#{@client.balance}"
   end
 
   def switch_to_captcha_challenge  # SWITCH TO CAPTCHA FRAME     
@@ -122,7 +133,7 @@ class CaptchaSolver < PageDriver
 
   def test_captcha_availability
     puts "#{time} test_1 ok" if displayed?(:id, "recaptcha-verify-button")
-    puts "#{time} test_2 ok" if driver.page_source.include? 'Select all images' 
+    puts "#{time} test_2 ok" if driver.page_source.include? 'Select all' 
   end 
 
   def get_capthca_parametrs
@@ -131,10 +142,9 @@ class CaptchaSolver < PageDriver
     
     instruction_selector = driver.find_element(:css, "#rc-imageselect > div.rc-imageselect-payload > div.rc-imageselect-instructions > div.rc-imageselect-desc-wrapper > div.rc-imageselect-desc-no-canonical")
     @instruction = instruction_selector.text
-    puts @instruction    
           
     images = wait_for { driver.find_elements(:class, 'rc-image-tile-target') }
-    puts images.size
+    puts "#{time} #{@instruction} #{images.size}"    
   end
  
   
@@ -142,18 +152,17 @@ class CaptchaSolver < PageDriver
     if @instruction.include? 'there are none left'
       puts "#{time} there is refreshable captcha :-("
     else  
-      captcha = @client.decode(url: @image_link, recaptcha: 1, textinstructions: @instruction, can_no_answer: 1)    
+      captcha = @client.decode(url: @image_link, recaptcha: 1, textinstructions: @instruction)    
       @solution = captcha.text
       captcha_id = captcha.id    
-      puts "#{time} 2captcha response: #{@solution}"
-      puts "#{time} captcha_id = #{captcha_id}"
+      puts "#{time} 2captcha response: #{@solution}, captcha_id = #{captcha_id}"      
       image_clicker
     end
   end  
   
   
   def image_clicker  # clicking on images that comes in response
-    index = @solution.split(//).map(&:to_i)
+    index = @solution.split(//).map(&:to_i)    
     for i in 0...index.length
     	sleep 1
     	u = driver.find_elements(:class, 'rc-image-tile-target')[index[i]-1]
@@ -170,7 +179,7 @@ def click_verify_select_type
   
   verify_button = @driver.find_element(:css, "#recaptcha-verify-button")
   verify_button.click
-  puts "#{time}'Verify' button clicked"
+  puts "#{time} 'Verify' button clicked"
   
   
   sleep 1
