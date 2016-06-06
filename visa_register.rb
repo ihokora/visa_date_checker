@@ -3,6 +3,8 @@ require 'date'
 require 'selenium-webdriver'
 require "rspec"
 require 'two_captcha'
+require 'headless'
+
 
 
 def time
@@ -10,11 +12,17 @@ def time
 end
 
 def driver_setup
+  @headless = Headless.new
+  @headless.start
   Selenium::WebDriver::Chrome::Service.executable_path = File.join(Dir.pwd, './chromedriver')
-  @driver = Selenium::WebDriver.for :chrome 
-  # @driver = Selenium::WebDriver.for :phantomjs
-  @wait = Selenium::WebDriver::Wait.new(:timeout => 5)  
+  @driver = Selenium::WebDriver.for :chrome
+  @wait = Selenium::WebDriver::Wait.new(:timeout => 5)   
 end    
+
+def teardown  
+  @driver.quit
+  @headless.destroy
+end
 
 class PageDriver
 
@@ -88,14 +96,17 @@ class PageDriver
 
 
 
-  def switch_to_captcha_frame
+  def switch_to_captcha_frame #'undefined'
     # switch to recaptcha checkbox frame
     wait_for { driver.find_element(:id, "ctl00_plhMain_grecaptcha") }
-    driver.switch_to.frame('undefined')
+    frame = wait_for { driver.find_elements(:tag_name, 'iframe')[0] }
+    driver.switch_to.frame(frame)
+    driver.save_screenshot('scrennshot.png')
     
     # click recaptcha checkbox
-    checkbox = wait_for { driver.find_element(:id, "recaptcha-anchor") }
-    checkbox.click
+    @checkbox = wait_for { driver.find_element(:id, 'recaptcha-anchor') }
+    puts @checkbox.attribute('aria-checked')
+    @checkbox.click
   end
 
   def switch_to_default
@@ -126,7 +137,12 @@ class CaptchaSolver < PageDriver
     puts "#{time} 2captcha account balance: $#{@client.balance}"
   end
 
-  def switch_to_captcha_challenge  # SWITCH TO CAPTCHA FRAME     
+  def switch_to_captcha_challenge_phantom  # SWITCH TO CAPTCHA FRAME     
+    captchaFrame = wait_for { find(:tag_name, 'iframe') }
+    driver.switch_to.frame(captchaFrame)
+  end
+
+  def switch_to_captcha_challenge_x  # SWITCH TO CAPTCHA FRAME     
     captchaFrame = wait_for { find(:css, "body > div > div:nth-child(4) > iframe") }
     driver.switch_to.frame(captchaFrame)
   end
@@ -144,13 +160,14 @@ class CaptchaSolver < PageDriver
     @instruction = instruction_selector.text
           
     images = wait_for { driver.find_elements(:class, 'rc-image-tile-target') }
-    puts "#{time} #{@instruction} #{images.size}"    
+    puts "#{time} #{@instruction} #{images.size}"     
   end
  
   
-  def solve_captcha  # send captcha to 2captcha
+  def solve_captcha  # send captcha to 2captcha    
     if @instruction.include? 'there are none left'
       puts "#{time} there is refreshable captcha :-("
+      restart
     else  
       captcha = @client.decode(url: @image_link, recaptcha: 1, textinstructions: @instruction)    
       @solution = captcha.text
@@ -162,8 +179,8 @@ class CaptchaSolver < PageDriver
   
   
   def image_clicker  # clicking on images that comes in response
-    index = @solution.split(//).map(&:to_i)    
-    for i in 0...index.length
+    index = @solution&.split(//)&.map(&:to_i)    
+    for i in 0...index&.length
     	sleep 1
     	u = driver.find_elements(:class, 'rc-image-tile-target')[index[i]-1]
       u.click
@@ -180,6 +197,7 @@ def click_verify_select_type
   verify_button = @driver.find_element(:css, "#recaptcha-verify-button")
   verify_button.click
   puts "#{time} 'Verify' button clicked"
+  puts @checkbox.attribute('aria-checked')
   
   
   sleep 1
@@ -194,9 +212,7 @@ def text_present?(text)
   @driver.page_source.include? text    
 end
 
-def teardown
-  @driver.quit
-end
+
 
 
 def realtime # :yield:
@@ -208,5 +224,9 @@ end
 def result_message
   message = @wait.until { @driver.find_element(:id, 'ctl00_plhMain_lblMsg') }
   @message = message.text
-  puts "#{time} #{@message}"
+  # puts "#{time} #{@message}"
+end
+
+def report_error(error_message)
+  (Thread.current[:errors] ||= []) << "#{error_message}"
 end

@@ -1,15 +1,11 @@
-require 'rubygems'
-require 'date'
-require 'selenium-webdriver'
-require "rspec"
-require 'two_captcha'
 
 
 text = "Select all images with street numbers. Click verify once there are none left."
 puts "yes" if text.include? 'there are none left'
 
-
-
+text1 = nil
+text1&.split(//)&.map(&:to_i)
+puts text1
 
 
 
